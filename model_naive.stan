@@ -16,10 +16,12 @@ model {
 }
 generated quantities {
   vector[N_rxn] yrep;
+  vector[N_rxn] log_lik;
   {
     vector[N_rxn] yhat = S' * theta;
     for (n in 1:N_rxn){
       yrep[n] = normal_rng(yhat[n], error_scale[n]);
+      log_lik[n] = normal_lpdf(y[n] | yhat[n], error_scale[n]);
     }
-  }
+  }                             
 }
