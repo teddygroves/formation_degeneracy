@@ -78,10 +78,10 @@ for var, ax in zip(["theta", "yrep", "log_lik"], axes):
         model_names=["naive", "rref"],
         var_names=[var],
         combined=True,
-        ax=ax,
-        kind="ridgeplot"
+        ax=ax
     )
     ax.set_title(var)
+plt.tight_layout()
 f.savefig("marginals.png", bbox_inches="tight")
 
 # compare number of leapfrog steps
