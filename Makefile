@@ -14,6 +14,7 @@ LOGS_TOY = $(shell find $(RESULTS_TOY)/samples -name "*.txt")
 LOGS_BIG = $(shell find $(RESULTS_BIG)/samples -name "*.txt")
 LAST_UPDATED_TOY = $(RESULTS_TOY)/samples/last_updated.txt
 LAST_UPDATED_BIG = $(RESULTS_BIG)/samples/last_updated.txt
+REPARAM_FILE = $(RESULTS_BIG)/equilibrator_reparam.json
 SCRIPT_TOY = run_toy_simulation_study.py
 SCRIPT_BIG = run_big_simulation_study.py
 MODEL_NAIVE = model_naive
@@ -48,6 +49,9 @@ clean-samples-toy:
 clean-samples-big: 
 	$(RM) $(SAMPLES_BIG) $(LOGS_BIG) $(LAST_UPDATED_BIG)
 
+clean-big-reparam:
+	$(RM) $(REPARAM_FILE)
+
 clean-samples: clean-samples-toy clean-samples-big
 
-clean-all: clean-paper clean-samples clean-stan
+clean-all: clean-paper clean-samples clean-stan clean-big-reparam
