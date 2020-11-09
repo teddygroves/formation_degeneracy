@@ -35,7 +35,7 @@ samples-toy: $(LAST_UPDATED_TOY)
 
 samples-big: $(LAST_UPDATED_BIG)
 
-samples: samples-toy, samples-big
+samples: samples-toy samples-big
 
 clean-paper: 
 	$(RM) *.pdf
