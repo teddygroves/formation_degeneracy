@@ -1,0 +1,8 @@
+#*
+*ltximg*
+*.ob-jupyter*
+*__pycache*
+*DS_Store
+*.png
+*reparam.json
+*stan_input.json

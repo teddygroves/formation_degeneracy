@@ -1,0 +1,109 @@
+#+TITLE: Supplementary material
+
+* How reaction measurements dependend on experimental conditions
+The following section sets out the theoretical framework for translating
+biochemical gibbs energy change measurements to different experimental
+conditions. It is mostly taken from
+cite:albertyThermodynamicsBiochemicalReactions2003 section 4, 'thermodynamics
+of pseudoisomer groups at specified ph', cite:noorConsistentEstimationGibbs2013
+and cite:duTemperatureDependentEstimationGibbs2018.
+
+** Relationship between reaction, compound and microspecies gibbs energies
+
+The relationship between the condition-specific gibbs free energy change of a
+reaction $\Delta_r G'^{o}$ and the condition-specific formation energies $s_i
+\Delta_f G'^{o}$ and stoichiometric coefficients $s$ of its reactants is as
+follows:
+
+$$
+\Delta_r G^{o\prime} = \sum_{i\ is\ a\ reactant} s_i \Delta_f G_i^{o\prime}
+$$
+
+When dissolved in water, most biologically interesting compounds exist in
+several different forms called 'pseudoisomers' or 'microspecies', each with a
+different configuration of bindings to metal and hydrogen ions (the latter is
+sometimes referred to as a protonation state). The different microspecies have
+different thermodynamic characteristics and relative proportions respond
+differently to experimental conditions like temperature, ionic strength and
+concentration of metal and hydrogen ions. Consequently the different
+microspecies they need to be considered individually in order to capture the
+behaviour of the whole compound.
+
+The relationship between a compound's condition-specific formation energy and
+those of its microspecies is as follows, according to
+cite:albertyThermodynamicsBiochemicalReactions2003 section 4.5, 'thermodynamics
+of pseudoisomer groups at specified pH':
+
+$$
+\Delta_f G^{o\prime} = -RT \ln \sum_{i\ is\ a\ microspecies} \exp(-\frac{\Delta_f G_i^{o\prime}}{RT})
+$$
+
+cite:duTemperatureDependentEstimationGibbs2018 (supplementary material,
+equation 8) give the following equation setting out how the condition-specific
+formation energy of a microspecies depends on these quantities:
+
+- The conditions (temperature $T$, ionic strength $I$, $pH$, $pMg$)
+- the microspecies's standard-condition formation entropy $\Delta_f S^o$
+- the microspecies's charge $z$, number of protons $nH$ and number of magnesium ions $nMg$) 
+- the formation energy of magnesium $\Delta_f G_{Mg}^{o}(T)$
+- the Debeye-Hükel number $\alpha$
+
+\begin{align*}
+\Delta_f G^{o\prime} &= \Delta_f G^{o} \\
+ &−\ (T − 298.15)\cdot \Delta_f S^o \\
+ &+\ nH\cdot RT\cdot \ln(10)\cdot pH \\
+ &-\ nM\cdot (\Delta_f G_{Mg}^{o}(T) - RT \cdot \ln(10)\cdot pMg) \\
+ &-\ RT\cdot\alpha\cdot(z^2 - nH)\cdot(\frac{\sqrt I}{1+\sqrt I} - 0.3 \cdot I)
+\end{align*}
+
+** Inferring microspecies formation energies from dissociation constants
+Standard-condition formation energies of microspecies are typically not
+measured directly. Instead, the binding reactions that convert different
+microspecies into each other are measured, making it possible to infer relative
+formation energies. The quantities measured are called dissociation
+constants. The dissociation constant for a binding reaction is the equilibrium
+ratio between the concentration of substrates to products, i.e. the unbound
+compound and ligand vs the bound compound. Negative log-scale acid dissociation
+constants are called $PK_a$ and negative log-scale magnesium dissociation
+constants are called $PK_{Mg}$.
+
+If a microspecies with minimum hydrogen ions has formation energy $\Delta_f
+G^o_0$, then a microspecies of the same compound with the same number of
+magnesium ions and $n$ more hydrogen ions has formation energy
+
+$$
+\Delta_f G^o_n = \Delta_f G^o_0 - \sum_{i=0}^n RT\cdot\log_{10}(PK_{ai})
+$$
+
+Similarly for magnesium ions, if a microspecies with no magnesium ions has
+formation energy $\Delta_f G^o_0$, then a microspecies of the same compound
+with the same number of hydrogen ions and $n$ more magnesium ions has formation
+energy
+
+$$
+\Delta_f G^o_n = \Delta_f G^o_0 + n\cdot\Delta_f G^o_{Mg}  - \sum_{i=0}^nRT\cdot\log_{10}(PK_{Mgi})
+$$
+
+where $\Delta_f G^{o}_{Mg}$ is the standard condition formation energy of
+magnesium. This extra term appears because magnesium ions are bonded pairs of
+magnesium atoms and some energy is required to form the bond, whereas hydrogen
+ions have zero formation energy.
+
+** Summary
+
+The theoretical machinery described above makes it possible to express the
+gibbs free energy change of a biochemical reaction in given conditions as a
+function of the conditions, the formation energies and entropies of its
+reactants and the dissociation constants of those reactants' microspecies. The
+procedure is as follows:
+
+1. Find the relative condition-independent formation energies of all
+   microspecies of all reactants using dissociation constants.
+2. Find the condition-specific formation energy of each microspecies using its
+   condition-independent formation energy and entropy, the conditions and
+   supporting information like the Debeye-Hükel numbers.
+3. Find the condition-specific formation energy of each reactant using those of
+   its microspecies.
+4. Find the condition specific gibbs free energy change of the reaction using
+   the formation energies and stoichiometric coefficients of its reactants.
+   

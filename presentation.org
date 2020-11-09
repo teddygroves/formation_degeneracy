@@ -1,0 +1,19 @@
+#+Title: Better MCMC performance for Bayesian models of biochemical thermodynamics
+
+* What is the problem?
+
+
+* Why might a Bayesian model be nice?
+- Missing data
+- Heterogeneity
+- More 
+
+* Problem: Additive degeneracy
+
+* Solution: Reparameterisation
+
+* Case studies: methodology
+
+* Case studies: Small example
+
+* Case studies: Large example

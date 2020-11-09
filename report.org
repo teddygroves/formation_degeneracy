@@ -1,0 +1,454 @@
+#+Title: Improving MCMC sampler performance for statistical models of biochemical thermodynamics
+
+* Introduction
+Biochemical compounds' formation energies are typically only weakly identified
+by measurements of reactions' Gibbs energy changes, leading to slow performance
+of Markov Chain Monte Carlo samplers under naive statistical model
+parameterisations. This paper presents a new parameterisation that improves the
+sampler performance, making it feasible to fit Bayesian models of biochemical
+formation energies.
+
+To demonstrate that the new parameterisation is effective, the paper includes
+two simulation studies: a simple toy example and a larger example based on
+publicly available data. In both cases the new parameterisation is shown to
+lead to better sampler performance.
+
+* Background
+The Gibbs energy change of a chemical reaction in aqueous solution, denoted
+$\Delta_rG$, is the amount of energy the reaction releases from its reactants
+or stores from its environment.  Gibbs free energy changes associated with
+biochemical reactions are important properties of metabolic networks. In order
+to make inferences about a biochemical system - for example to predict whether
+over-expressing an enzyme would help or hinder an organism's metabolism - the
+Gibbs energy changes of the system's reactions must either be measured or
+inferred.
+
+The Gibbs energy change of a reaction that involves multiple compounds is
+determined by the Gibbs energy change of each compound's formation reaction in
+standard conditions, denoted $\Delta_fG^{o}$ and generally referred to as
+'standard condition formation energy', together with its stoichiometry -
+i.e. the number of molecules of the compound that the reaction creates or
+consumes - and experimental conditions like temperature, pH, ionic strength and
+metal ion concentration. Since the dependency on conditions and stoichiometries
+of most biochemical reactions are relatively well understood, the main
+challenge in modelling the thermodynamic properties of biochemical reactions is
+to estimate standard condition formation energies of their compounds.
+
+cite:duEstimatingMetabolicEquilibrium2018 is a recent review paper describing
+the state of the art in estimation of biochemical formation energies. It
+explains some of the main challenges, particularly incomplete data
+(particularly in the decomposition of compounds into chemical groups),
+heterogeneity in informativeness between reactions, and heterogeneity between
+different kinds of compounds in the accuracy of the group additivity assumption
+(see below). 
+
+A difficulty that cite:duEstimatingMetabolicEquilibrium2018 do not address
+directly is that there are potential sources of variation and bias in the
+adjustment for experimental conditions. For example, the effect of ionic
+strength is governed by Debeye-Hükel constants that are not known precisely,
+and the effect of magnesium ion concentration depends on microspecies-specific
+dissociation constants that are difficult to measure precisely. A further
+challenge is that downstream applications, such as kinetic modelling of
+biochemical networks, require not just good point estimates of unknown
+formation energies but also good overall uncertainty assessments.
+
+These challenges make the estimation of biochemical formation energies a
+natural fit for structured Bayesian regression modelling. Within this framework
+there are natural ways to accommodate missing data, heterogeneity, multiple
+sources of variation and the need for uncertainty assessments. However, to our
+knowledge this has not previously been done successfully, likely because of the
+computational difficulties we identify below.
+
+** Thermodynamic relationships
+*** Relationship between standard condition Gibbs energy change and formation energies
+The relationship between a reaction's standard-condition Gibbs free energy
+change and the standard-condition formation energies of the reactants is as
+follows:
+
+$$
+\Delta_r G_j = \sum_{i\ is\ a\ reactant} s_i \Delta_f G_i
+$$
+
+where $s_i$ is the stoichiometric coefficient of reactant $i$ in reaction $j$.
+
+For a system of reactions described by stoichiometric matrix $S$, the
+relationship can be described as follows:
+
+$$
+\Delta_r G = S^T \Delta_f G
+$$
+
+*** Relationship between standard condition and condition-specific Gibbs energy changes
+The Gibbs energy change of a biochemical reaction at given experimental
+conditions is related to the standard-condition measurement by a complicated
+but well-understood system of relationships. See
+cite:albertyThermodynamicsBiochemicalReactions2003 section 4, 'thermodynamics
+of pseudo-isomer groups at specified pH', cite:noorConsistentEstimationGibbs2013
+and cite:duTemperatureDependentEstimationGibbs2018 for discussion of these
+relationships, and the supplementary material [SECTION?] for as summary.
+
+In this paper we use a curated data-set of reaction measurements that have
+already been transformed to their theoretical values at standard conditions.
+
+** Approximate group additivity
+The latest approaches to estimating biochemical formation energies,
+e.g. cite:noorConsistentEstimationGibbs2013 and
+cite:duTemperatureDependentEstimationGibbs2018, assume that compound formation
+energies are approximately group additive. This is the case when the formation
+energy of a compound is approximately equal to the sum of the formation
+energies of its chemical groups. In cite:noorConsistentEstimationGibbs2013 this
+assumption is incorporated by fitting two models - one assuming perfect group
+additivity ("group contribution") and one assuming no group additivity
+("reactant contribution"). The two models are combined using a fall-back
+procedure, with the reactant contribution model preferred except for compounds
+where no reactant contribution estimate is available.
+
+In the context of a Bayesian statistical model, approximate group additivity
+can naturally be taken into account with a multi-level parameter structure. In
+this kind of model, compounds' standard condition formation energies are
+informed by latent parameters representing the standard condition formation
+energies of chemical groups. The relevance of group sum can be determined based
+on the data by a higher order parameter.
+
+** Computational issues for structured Bayesian models
+The main feature that makes it difficult to apply structured Bayesian modelling
+to biochemical thermodynamics is that formation energies are typically only
+weakly identified by the available reaction measurements. This happens because
+a single reaction measurement is informative only about a linear combination of
+the formation energies of its compounds. For example, consider a reaction with
+the following stoichiometry:
+
+$$
+A + B \leftrightarrow 2C
+$$
+
+If this reaction's Gibbs free energy change were measured in standard
+conditions, this would provide information as to the value of $2\theta_C -
+\theta_A - \theta_B$. In order to fix the value of all three unknowns, three
+independent linear combinations would need to be measured or informed by prior
+information. 
+
+Unfortunately the available measurements typically do not identify enough
+linear combinations to determine the absolute values of all formation energies,
+even given perfect measurements. In addition, reaction measurements are
+typically very accurate relative to the accuracy of the other available
+information about formation energies.
+
+Together these features of the formation energy estimation problem induce what
+cite:betancourtmichaelIdentityCrisis2020 terms 'additive degeneracy' in the
+target posterior distribution. Instead of concentrating in one region of
+parameter space, posterior mass is spread out along comparatively diffuse
+surfaces, making the posterior distribution difficult to explore.
+
+Degenerate posterior distributions can often be explored more efficiently when
+they are reparameterised. For example, Stan's adaptive HMC algorithm optionally
+transforms unknown parameters in order to take into account
+correlations. Unfortunately in the case of formation energy estimation the
+induced parameter correlations are too extreme for this or other generic
+re-parameterisation strategies to be effective. Thus a re-parameterisation
+strategy that is tailored to the problem of formation energy estimation seems
+to be needed.
+
+* Method
+We made a strategy for parameterising Bayesian regression models of biochemical
+thermodynamics that addresses the typical additive degeneracy issue. To
+demonstrate that it works we made a representative regression model and
+compared its behaviour under a naive parameterisation and a re-parameterisation
+based on our strategy.
+
+** Modelling approach
+Our full model is as follows:
+
+\begin{align*}
+y &\sim N(\Delta_rG, \sigma_r) \\
+\Delta_r G &= S^T \theta \\
+\theta &\sim Normal(G \gamma, \tau) \\
+\theta &\sim Normal(\mu_{\theta}, \sigma_{\theta}) \\
+\gamma &\sim Normal(\mu_{\gamma}, \sigma_{\gamma}) \\
+\tau &\sim Half\mbox{-} Normal(\mu_{\tau}, \sigma_{\tau}) \\
+\end{align*}
+
+where
+
+- $\gamma$ and $\theta$ are vectors representing unknown group and compound
+  formation energies respectively
+- $tau$ is an unknown positive number representing the inaccuracy of the group
+  additivity assumption
+- $S$ and $G$ are known matrices representing reaction stoichiometry and group
+  incidence respectively
+- $\mu_{\theta}$ and $\mu_{gamma}$ are vectors of known prior means for
+  compound and group formation energies
+- $\sigma_{\theta}$ and $\sigma_{\gamma}$ are vectors of known prior standard
+  deviations for compound and group formation energies
+- $\mu_{\tau}$ and $\sigma_{\tau}$ are the known prior mean and standard
+  deviation for the inaccuracy of the group additivity assumption
+  
+** Naive parameterisation
+We made two Stan programs implementing our model: one with a naive
+parameterisation and one with our new parameterisation.
+
+See cite:carpenterStanProbabilisticProgramming2017 for a description of the
+Stan probabilistic programming language.
+
+The naive model is as follows:
+#+INCLUDE: "model_naive_G.stan" src stan
+
+The re-parameterised model does not include a Jacobian adjustment, even though
+the target log probability is incremented by the probability density of the
+transformed parameter variable ~theta~. This is because the transformation from
+~eta_cpd_z~ to ~theta~ is linear - i.e. adding and multiplying by vectors of
+constants. Since, for a Bayesian statistical model it is only necessary to know
+the posterior density up to proportionality, the Jacobian adjustment can safely
+be ignored.
+
+** New parameterisation
+Following cite:albertyEquilibriumCompositionsSolutions1991 we find an
+identifiable set of $N_{rxn}$ parameters by multiplying the original parameters
+$\theta$ by the reduced row echelon form of the transpose of stoichiometric
+matrix, $rref(S^T)$. In order to incorporate pre-experimental information about
+the formation energies, we embed $rref(S^{T})$ inside the $N_{cpd}\times N_{cpd}$
+identity matrix to define a $N_{cpd}\times N_{cpd}$ transformation matrix
+$R$. The procedure for generating $R$ is as follows.
+
+1. Start with a $N_{cpd}\times N_{cpd}$ identity matrix called $R$
+2. Find the $N_{cpd} \times N_{rxn}$ stoichiometric matrix $S$.
+3. Find the reduced row echelon form of $S^T$, $rref(S^T)$
+4. For each of $rref(S^T)$' leading ones, find its row index $i$ and column
+   index $j$, and replace row $j$ of $R$ with row $i$ of $rref(S^T)$
+
+The re-parameterised Stan program is as follows:
+
+#+INCLUDE: "model_rref_G.stan" src stan
+
+The two programs are almost the same, with the only difference being that the
+re-parameterised model uses the known matrix ~R_inv~ to define the transformed
+parameter ~theta~.
+
+* Results
+** Example 1: simple toy case
+This section illustrates our method with a worked example.
+
+The stoichiometric matrix $S$ and $rref(S^T)$, the reduced row echelon form of
+its transpose are as follows:
+
+$$
+S = \left[\begin{matrix}
+    0 & 0 & 0 & -1  \\
+    0 & 0 & 0 & -1  \\
+    0 & 0 & 0 & 2   \\
+    0 & 0 & -1 & 0  \\
+    0 & -1 & -1 & 0 \\
+    1 & 1 & 2 & 0   \\
+  \end{matrix} \right] \\
+rref(S^T) = \left[\begin{matrix}
+    1 & 1 & -2 & 0 & 0 & 0 \\
+    0 & 0 & 0 & 1 & 0 & 0  \\
+    0 & 0 & 0 & 0 & 1 & 0  \\
+    0 & 0 & 0 & 0 & 0 & 1  \\
+  \end{matrix}
+\right]
+$$
+
+In this the re-parameterisation matrix $R$ is
+$$
+R = \left[\begin{matrix}
+    1 & 1 & -2 & 0 & 0 & 0 \\
+    0 & 1 & 0 & 0 & 0 & 0  \\
+    0 & 0 & 1 & 0 & 0 & 0  \\
+    0 & 0 & 0 & 1 & 0 & 0  \\
+    0 & 0 & 0 & 0 & 1 & 0  \\
+    0 & 0 & 0 & 0 & 0 & 1
+  \end{matrix} \right] 
+$$ 
+
+with rows 1, 4, 5 and 6 taken from $rref(ST)$ because its leading ones are at
+these columns.
+
+If the original parameters were 
+
+$$
+\theta = \left[\begin{matrix}
+ \theta_1 \\ \theta_2 \\ \theta_3 \\ \theta_4 \\ \theta_5 \\ \theta_6
+\end{matrix}\right]
+$$
+
+then the transformed parameters would be 
+
+$$
+\gamma = R\theta = \left[\begin{matrix}
+\theta_{a} - \theta_{b} + 2 \theta_{c}\\\theta_{b}\\\theta_{c}\\\theta_{d}\\\theta_{e}\\\theta_{f}
+\end{matrix}\right]
+$$
+
+Given $\gamma$, the interpretable parameters $\theta$ can be recovered using
+the following relationship:
+
+$$
+\theta = R^{-1}\gamma = \left[\begin{matrix}
+\gamma_{a} + \gamma_{b} - 2 \gamma_{c}\\\gamma_{b}\\\gamma_{c}\\\gamma_{d}\\\gamma_{e}\\\gamma_{f}
+\end{matrix}\right]
+$$
+
+*** Simulation study
+We ran a simulation study to compare the performance of the naive and
+reparameterised models using the stoichiometry specified above and a simulated
+data generating process matching the model, with the following true parameters
+(all units are kJ/mol):
+
+- $\tau$: 40
+- $\sigma_r$: [1, 20, 20, 20]
+- $\gamma: [-900, -700, -700, -1910]
+
+We generated values for $theta$ and then simulated measurements $y$ using these
+inputs and our model assumptions.
+
+We then fit our model under both parameterisations, using the following priors:
+
+- $\mu_{\theta}$: [-900, -700, -600, -2000, -1400, -2700]
+- $\sigma_{\theta}$: [400, 400, 400, 400, 400, 400]
+- $\mu_{\gamma}$: [-1000, -700, -600, -2000]
+- $\sigma_{\gamma}$: [400, 400, 400, 400]
+- $\mu_{\tau}$: 50
+- $\sigma_{\tau}$: 20
+
+All of these values were chosen to broadly reflect a realistic measurement and
+prior information setup.
+
+For each parameterisation we ran 4 Markov chains with 2000 warmup and 2000
+sampling iterations per chain. We configured Stan's sampler to use a binary
+tree with depth of at most 13 (the default cap is 10) and otherwise used Stan's
+default configuration.
+
+Both programs converged satisfactorily. and approximately recovered the
+parameters of the true data generating process, as can be seen from the
+following graph:
+
+#+ATTR_ORG: :width 600
+[[./results/simple_case_study/plots/recovery.png]]
+
+Here are a pair of histograms showing the number of leapfrog steps per
+iteration that Stan's sampler took while running 4 chains with 1000 iterations
+per chain under both parameterisations:
+
+#+ATTR_ORG: :width 500
+[[./results/simple_case_study/plots/leapfrogs.png]]
+
+The sampler tended to take far more leapfrog steps under the new
+parameterisation compared to the naive parameterisation, indicating that our
+method improved performance in this case.
+
+** Example 2: component contribution data
+To test whether the performance improvement extends to more a realistic dataset
+we ran a second simulation study with a larger dataset.
+
+We took the stoichiometry for XXX reaction and XXX compounds from the python
+library and website [[https://gitlab.com/equilibrator][equilibrator]]
+cite:flamholzEQuilibratorBiochemicalThermodynamics2012. We assumed that
+equilibrator's group formation energy estimates were true, then used these
+values to generate compound formation energies, under the assumption that
+compound formation energies are approximately group additive with standard
+deviation 50 kJ/mol.
+
+We assumed known measurement error standard deviation of +/-5 kJ/mol for
+measurements of non-formation reactions, and +/-200 kJ/mol for formation
+reactions. 
+
+We generated one measurement per reaction.
+
+To make the test shorter and remove variation due to different time spent
+finding the typical set we initialised all parameters at their true values and
+set Stan's initial adaptation window to zero.
+
+*** Adjustment for experimental conditions                         :noexport:
+Instead of including experimental conditions in our model explicitly, we do so
+by using measurements that have been pre-processed to transform them to
+theoretical standard-condition values. This is straightforward thanks to the
+maintainers of the python library and website equilibrator, who curate a
+suitable data-set. See supplementary material [LINK] for details as to how we
+retrieved this data.
+
+There are several potential sources of uncertainty in the adjustment for
+experimental conditions:
+- The conditions may are recorded inaccurately and sparsely: in many cases
+  missing values for ionic strength, pH or ion concentration have to be
+  imputed.
+- The Debeye-Hükel constants governing the effect of ionic strength are not
+  known exactly.
+- Dissociation constants are measured with varying degrees of accuracy.
+
+See cite:duEstimatingMetabolicEquilibrium2018 for a discussion of these
+issues. For the sake of simplicity this paper does not attempt to model this
+uncertainty. 
+
+We note that our model can be extended so as to model the extra sources of
+uncertainty explicitly.
+
+*** Results
+
+Figure 1 shows the marginal posterior predictive distributions for the model's
+training measurements:
+
+#+ATTR_ORG: :width 700
+#+CAPTION: Marginal posterior predictive distributions
+[[./results/equilibrator_case_study/plots/predictions.png]]
+
+Very few reaction measurements fall outside the 90% intervals, suggesting a
+degree of under-fitting. There also seems to be some systematic bias in the
+predictions for measurements of particularly low formation energies, which tend
+to be a bit higher than the measurements.
+
+The marginal distributions of compound and group formation energies are shown
+in figure 2.
+
+#+ATTR_ORG: :width 700
+#+CAPTION: Marginal posterior distributions for compound and group formation energies
+[[./results/equilibrator_case_study/plots/marginal_params.png]]
+
+The component contribution estimates are shown in red. By and large the two
+models agree as to the best estimates, though there are some systematic
+differences for compounds and groups with particularly high and low estimated
+formation energy.
+
+Here is a comparison of leapfrog steps taken by the naive and novel samplers:
+
+#+ATTR_ORG: :width 500
+[[./results/equilibrator_case_study/plots/leapfrogs.png]]
+
+Although the novel parameterisation resulted in substantially fewer leapfrog
+steps, the difference is not as marked as in the simple toy case study. We
+think this is because of the larger role played in the second case study by
+group contributions, which were not reparameterised.
+
+* Discussion
+
+The simulation study shows that the reparameterisation works in a case where
+the true data generating process matches our model assumptions, recovering the
+input while reducing the computational burden compared to the naive
+parameterisation. The case study using real data shows that performance
+improves with a realistic model and dataset.
+
+We conclude that the reparameterisation
+
+** Scope for improvement
+
+There are several ways in which this analysis could be improved.
+
+The reparameterised model is rather slow and has a small stepsize. This may be
+caused in part by a similar degeneracy at the level of chemical groups. It is
+therefore possible that a more complex model with reparameterised group and
+compound effects would improve efficiency further.
+
+The realistic model is clearly not perfectly specified. The hardcoded
+measurement error seems to be too high, leading to underfitting. These problems
+could be addressed by using a more general model structure.
+
+The 
+
+* Acknowledgements
+This work was funded by the Novo Nordisk Foundation Center for Biosustainability.
+
+The authors are very grateful to Elaad Noor, Daniel Zielinski, Aki Vehtari, 
+
+* References
+
+#  LocalWords:  MCMC
