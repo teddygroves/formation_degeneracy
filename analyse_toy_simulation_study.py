@@ -6,33 +6,16 @@ from run_toy_simulation_study import (
     SAMPLE_DIR_SMART,
     STAN_FILE_NAIVE,
     STAN_FILE_SMART,
-    DATA_FILE,
+    STAN_INPUT,
     CHAINS
 )
+from plotting import plot_leapfrog
 import json
 import numpy as np
 import os
 import pandas as pd
 
 PLOT_DIR = os.path.join(RESULTS_DIR, "plots")
-
-
-def plot_leapfrogs(infd_naive, infd_smart):
-    bins = np.linspace(0, 4500, 50)
-    f, ax = plt.subplots(figsize=[8, 5])
-    for infd, label in zip(
-        [infd_naive, infd_smart],
-        ["naive parameterisation", "new parameterisation"]
-    ):
-        ax.hist(
-            infd.sample_stats.n_leapfrog.to_series(),
-            label=label,
-            alpha=0.6,
-            bins=bins,
-        )
-    ax.set(xlabel="Leapfrog steps", ylabel="Frequency")
-    ax.legend(frameon=False)
-    return f, ax
 
 
 def plot_param_recovery(infd_naive, infd_smart, stan_input):
@@ -71,15 +54,16 @@ def plot_param_recovery(infd_naive, infd_smart, stan_input):
 
 
 def get_directory_csvs(directory):
-    return list(filter(lambda f: f.enswith(".csv"), directory))
+    files = [os.path.join(directory, f) for f in os.listdir(directory)]
+    return list(filter(lambda f: f.endswith(".csv"), files))
 
 
 def main():
-    stan_input = json.load(open(DATA_FILE, "r"))
-    infd_smart = az.from_cmdstan(get_directory_csvs(SAMPLE_DIR_SMART))
-    infd_naive = az.from_cmdstan(get_directory_csvs(SAMPLE_DIR_NAIVE))
-    f, axes = plot_leapfrogs(infd_naive, infd_smart)
-    f.savefig(os.path.join(PLOT_DIR, "leapfrogs.png"), bbox_inches="tight")
+    stan_input = json.load(open(STAN_INPUT, "r"))
+    infd_smart = az.from_cmdstan(get_directory_csvs(SAMPLE_DIR_SMART), save_warmup=True)
+    infd_naive = az.from_cmdstan(get_directory_csvs(SAMPLE_DIR_NAIVE), save_warmup=True)
+    p = plot_leapfrog(infd_naive, infd_smart)
+    p.save(os.path.join(PLOT_DIR, "leapfrogs.png"))
     f, axes = plot_param_recovery(infd_naive, infd_smart, stan_input)
     f.savefig(os.path.join(PLOT_DIR, "recovery.png"), bbox_inches="tight")
     plt.close("all")
