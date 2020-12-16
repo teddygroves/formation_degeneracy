@@ -14,6 +14,46 @@ publicly available data. In both cases the new parameterisation is shown to
 lead to better sampler performance.
 
 * Background
+Thermodynamic parameters are important inputs to kinetic models of cellular
+metabolism. Much effort has been spent acquiring thermodynamic measurements of
+important biochemical reactions in order to quantify these parameters. Bayesian
+statistical analysis of this data is desirable it offers a natural way to
+accommodate problematic features such as missing measurements, heterogeneity
+and the need for uncertainty quantification. However, to our knowledge this has
+not previously been done successfully, likely because of the computational
+difficulties we identify below.
+
+This section summarises previous work on the quantification of biochemical
+thermodynamic parameters, sets out the key issues and explains why Bayesian
+statistical models of biochemical thermodynamics are difficult to fit.
+
+** Previous work
+cite:duEstimatingMetabolicEquilibrium2018 is a recent review paper describing
+the state of the art in estimation of biochemical formation energies. It
+explains some of the main challenges, particularly incomplete data
+(particularly in the decomposition of compounds into chemical groups),
+heterogeneity in informativeness between reactions, and heterogeneity between
+different kinds of compounds in the accuracy of the group additivity assumption
+(see below).
+
+A difficulty that cite:duEstimatingMetabolicEquilibrium2018 do not address
+directly is that there are potential sources of variation and bias in the
+adjustment for experimental conditions. For example, the effect of ionic
+strength is governed by Debeye-Hükel constants that are not known precisely,
+and the effect of magnesium ion concentration depends on microspecies-specific
+dissociation constants that are difficult to measure precisely. A further
+challenge is that downstream applications, such as kinetic modelling of
+biochemical networks, require not just good point estimates of unknown
+formation energies but also good overall uncertainty assessments.
+
+cite:mahamkaliMultiTFAPythonPackage2020 presents a framework for analysing
+metabolic thermodynamics data by finding boundary conditions for XXXX. This is
+a better way of generating inputs for a kinetic model than XXX as it takes into
+account dependencies in the data. 
+
+cite:gollubProbabilisticThermodynamicAnalysis2020 
+
+** Thermodynamic relationships
 The Gibbs energy change of a chemical reaction in aqueous solution, denoted
 $\Delta_rG$, is the amount of energy the reaction releases from its reactants
 or stores from its environment.  Gibbs free energy changes associated with
@@ -27,39 +67,13 @@ The Gibbs energy change of a reaction that involves multiple compounds is
 determined by the Gibbs energy change of each compound's formation reaction in
 standard conditions, denoted $\Delta_fG^{o}$ and generally referred to as
 'standard condition formation energy', together with its stoichiometry -
-i.e. the number of molecules of the compound that the reaction creates or
+i.e. the number of molecules of each compound that the reaction creates or
 consumes - and experimental conditions like temperature, pH, ionic strength and
 metal ion concentration. Since the dependency on conditions and stoichiometries
 of most biochemical reactions are relatively well understood, the main
 challenge in modelling the thermodynamic properties of biochemical reactions is
 to estimate standard condition formation energies of their compounds.
 
-cite:duEstimatingMetabolicEquilibrium2018 is a recent review paper describing
-the state of the art in estimation of biochemical formation energies. It
-explains some of the main challenges, particularly incomplete data
-(particularly in the decomposition of compounds into chemical groups),
-heterogeneity in informativeness between reactions, and heterogeneity between
-different kinds of compounds in the accuracy of the group additivity assumption
-(see below). 
-
-A difficulty that cite:duEstimatingMetabolicEquilibrium2018 do not address
-directly is that there are potential sources of variation and bias in the
-adjustment for experimental conditions. For example, the effect of ionic
-strength is governed by Debeye-Hükel constants that are not known precisely,
-and the effect of magnesium ion concentration depends on microspecies-specific
-dissociation constants that are difficult to measure precisely. A further
-challenge is that downstream applications, such as kinetic modelling of
-biochemical networks, require not just good point estimates of unknown
-formation energies but also good overall uncertainty assessments.
-
-These challenges make the estimation of biochemical formation energies a
-natural fit for structured Bayesian regression modelling. Within this framework
-there are natural ways to accommodate missing data, heterogeneity, multiple
-sources of variation and the need for uncertainty assessments. However, to our
-knowledge this has not previously been done successfully, likely because of the
-computational difficulties we identify below.
-
-** Thermodynamic relationships
 *** Relationship between standard condition Gibbs energy change and formation energies
 The relationship between a reaction's standard-condition Gibbs free energy
 change and the standard-condition formation energies of the reactants is as
@@ -150,13 +164,14 @@ strategy that is tailored to the problem of formation energy estimation seems
 to be needed.
 
 * Method
+
 We made a strategy for parameterising Bayesian regression models of biochemical
 thermodynamics that addresses the typical additive degeneracy issue. To
 demonstrate that it works we made a representative regression model and
 compared its behaviour under a naive parameterisation and a re-parameterisation
 based on our strategy.
 
-** Modelling approach
+** Modelling approach and reparameterisation strategy
 Our full model is as follows:
 
 \begin{align*}
@@ -183,7 +198,7 @@ where
 - $\mu_{\tau}$ and $\sigma_{\tau}$ are the known prior mean and standard
   deviation for the inaccuracy of the group additivity assumption
   
-** Naive parameterisation
+*** Naive parameterisation
 We made two Stan programs implementing our model: one with a naive
 parameterisation and one with our new parameterisation.
 
@@ -191,7 +206,7 @@ See cite:carpenterStanProbabilisticProgramming2017 for a description of the
 Stan probabilistic programming language.
 
 The naive model is as follows:
-#+INCLUDE: "model_naive_G.stan" src stan
+#+INCLUDE: "model_naive.stan" src stan
 
 The re-parameterised model does not include a Jacobian adjustment, even though
 the target log probability is incremented by the probability density of the
@@ -201,7 +216,7 @@ constants. Since, for a Bayesian statistical model it is only necessary to know
 the posterior density up to proportionality, the Jacobian adjustment can safely
 be ignored.
 
-** New parameterisation
+*** New parameterisation
 Following cite:albertyEquilibriumCompositionsSolutions1991 we find an
 identifiable set of $N_{rxn}$ parameters by multiplying the original parameters
 $\theta$ by the reduced row echelon form of the transpose of stoichiometric
@@ -218,7 +233,7 @@ $R$. The procedure for generating $R$ is as follows.
 
 The re-parameterised Stan program is as follows:
 
-#+INCLUDE: "model_rref_G.stan" src stan
+#+INCLUDE: "model_smart.stan" src stan
 
 The two programs are almost the same, with the only difference being that the
 re-parameterised model uses the known matrix ~R_inv~ to define the transformed
@@ -426,23 +441,6 @@ the true data generating process matches our model assumptions, recovering the
 input while reducing the computational burden compared to the naive
 parameterisation. The case study using real data shows that performance
 improves with a realistic model and dataset.
-
-We conclude that the reparameterisation
-
-** Scope for improvement
-
-There are several ways in which this analysis could be improved.
-
-The reparameterised model is rather slow and has a small stepsize. This may be
-caused in part by a similar degeneracy at the level of chemical groups. It is
-therefore possible that a more complex model with reparameterised group and
-compound effects would improve efficiency further.
-
-The realistic model is clearly not perfectly specified. The hardcoded
-measurement error seems to be too high, leading to underfitting. These problems
-could be addressed by using a more general model structure.
-
-The 
 
 * Acknowledgements
 This work was funded by the Novo Nordisk Foundation Center for Biosustainability.
