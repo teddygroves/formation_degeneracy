@@ -339,14 +339,14 @@ parameters of the true data generating process, as can be seen from the
 following graph:
 
 #+ATTR_ORG: :width 600
-[[./results/simple_case_study/plots/recovery.png]]
+[[./results/toy_case_study/plots/recovery.png]]
 
 Here are a pair of histograms showing the number of leapfrog steps per
 iteration that Stan's sampler took while running 4 chains with 1000 iterations
 per chain under both parameterisations:
 
 #+ATTR_ORG: :width 500
-[[./results/simple_case_study/plots/leapfrogs.png]]
+[[./results/toy_case_study/plots/leapfrogs.png]]
 
 The sampler tended to take far more leapfrog steps under the new
 parameterisation compared to the naive parameterisation, indicating that our
